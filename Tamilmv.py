@@ -69,7 +69,7 @@ class Scraper:
             ET.SubElement(item, 'pubDate').text = now.isoformat('T')
 
     def begin(self):
-        if os.path.exist('rssList.txt'):
+        if os.path.exists('rssList.txt'):
             self.all_links = load_list_from_file()
             print("rssList.txt loaded")
             return
