@@ -16,7 +16,8 @@ class Scraper:
     def __init__(self):
         self.all_links = []
         self.titles = []
-        self.url = 'https://www.1tamilmv.com/'
+        self.url = 'https://www.1tamilmv.eu/'
+        Thread(target=self.begin).start()
         self.app = Flask(__name__)
         self.port = int(os.environ.get("PORT", 8000))
         self.setup_routes()
@@ -53,7 +54,7 @@ class Scraper:
     def scrape(self,links):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Map tasks for each link to get_links_with_delay function
-            results = executor.map(get_links_with_delay, itertools.islice(links, 30))
+            results = executor.map(self.get_links_with_delay, itertools.islice(links, 30))
             # Iterate over completed tasks
             for result in results:
                 # Yield results from each completed task
@@ -93,7 +94,7 @@ class Scraper:
         links = [a['href'] for p in paragraphs for a in p.find_all('a', href=True)]
         # Filter the links to get only the ones that contain 'index.php?/forums/topic/'
         filtered_links = [link for link in links if 'index.php?/forums/topic/' in link]
-        self.all_links=list(scrape(filtered_links))
+        self.all_links=list(self.scrape(filtered_links))
         self.titles = [link[0] for link in self.all_links]
         self.save_list_to_file()
 
@@ -144,9 +145,9 @@ class Scraper:
             tree.write('tamilmvRSS.xml', encoding='utf-8', xml_declaration=True)
             print('New items added to feed')
 
-    def run_schedule():
+    def run_schedule(self):
         while True:
-            job()
+            self.job()
             sleep(1500)
 
     def run(self):
@@ -165,7 +166,6 @@ class Scraper:
 if __name__ == '__main__':
     scraper = Scraper()
     scraper.run()
-    scraper.begin()
     Thread(target=scraper.run_schedule).start()
     # torrent_file_path = "test1.torrent"
     # size_in_bytes = get_torrent_size(torrent_file_path)
