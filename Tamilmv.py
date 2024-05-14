@@ -12,7 +12,7 @@ import os
 from threading import Thread
 # Save a list to a file
 
-class Tamilmv:
+class Scraper:
     def __init__(self):
         self.all_links = []
         self.titles = []
