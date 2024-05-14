@@ -10,7 +10,6 @@ import pickle
 from flask import Flask, send_file
 import os
 from threading import Thread
-
 # Save a list to a file
 def save_list_to_file(list_to_save):
     with open('rssList.txt', 'wb') as f:
@@ -38,7 +37,7 @@ def get_torrent_size(torrent_file_path):
 
 def get_links_with_delay(link):
     result = get_links(link)
-    sleep(3)  # Introduce a delay of 5 seconds between each request
+    sleep(5)  # Introduce a delay of 5 seconds between each request
     return result
 
 def scrape(links):
@@ -142,7 +141,6 @@ def run_schedule():
         job()
         sleep(1500)
 
-Thread(target=run_schedule).start()
 
 app = Flask(__name__)
 
@@ -160,6 +158,7 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0',port=port)
 
 begin()
+Thread(target=run_schedule).start()
 
 # torrent_file_path = "test1.torrent"
 # size_in_bytes = get_torrent_size(torrent_file_path)
