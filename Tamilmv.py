@@ -92,7 +92,7 @@ class Scraper:
         links = [a['href'] for p in paragraphs for a in p.find_all('a', href=True)]
         # Filter the links to get only the ones that contain 'index.php?/forums/topic/'
         filtered_links = [link for link in links if 'index.php?/forums/topic/' in link]
-        self.all_links=list(scrape(filtered_links))
+        self.all_links=list(self.scrape(filtered_links))
 
         self.save_list_to_file(all_links)
 
