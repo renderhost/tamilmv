@@ -12,9 +12,10 @@ import os
 from threading import Thread
 # Save a list to a file
 
-class Scraper:
+class Tamilmv:
     def __init__(self):
         self.all_links = []
+        self.titles = []
         self.url = 'https://www.1tamilmv.com/'
         self.app = Flask(__name__)
         self.port = int(os.environ.get("PORT", 8000))
@@ -29,14 +30,14 @@ class Scraper:
         with open('rssList.txt', 'rb') as f:
             self.all_links = pickle.load(f)
 
-    def get_links(url):
+    def get_links(self,url):
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
         # cPost_contentWrap = soup.find('div', class_='cPost_contentWrap')
         a_tags = soup.find_all('a', href=lambda href: href and 'attachment.php' in href)
         return a_tags
 
-    def get_torrent_size(torrent_file_path):
+    def get_torrent_size(self,torrent_file_path):
         data = tp.parse_torrent_file(torrent_file_path)
         if 'files' in data['info']:
             size = sum(file['length'] for file in data['info']['files'])
@@ -44,12 +45,12 @@ class Scraper:
             size = data['info']['length']
         return size
 
-    def get_links_with_delay(link):
+    def get_links_with_delay(self,link):
         result = self.get_links(link)
         sleep(5)  # Introduce a delay of 5 seconds between each request
         return result
 
-    def scrape(links):
+    def scrape(self,links):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Map tasks for each link to get_links_with_delay function
             results = executor.map(get_links_with_delay, itertools.islice(links, 30))
@@ -59,9 +60,9 @@ class Scraper:
                 for a in result:
                     yield a.text, a['href']
 
-    def build_xml(self,data,channel):
+    def build_xml(self,channel):
         now = datetime.now()
-        for x in data:
+        for x in self.all_links:
             item = ET.SubElement(channel, 'item')
             ET.SubElement(item, 'title').text = x[0]
             ET.SubElement(item, 'link').text = x[1]
@@ -92,17 +93,21 @@ class Scraper:
         links = [a['href'] for p in paragraphs for a in p.find_all('a', href=True)]
         # Filter the links to get only the ones that contain 'index.php?/forums/topic/'
         filtered_links = [link for link in links if 'index.php?/forums/topic/' in link]
-        self.all_links=list(self.scrape(filtered_links))
+        self.all_links=list(scrape(filtered_links))
+        self.titles = [link[0] for link in self.all_links]
+        self.save_list_to_file()
 
-        self.save_list_to_file(all_links)
-
-        self.build_xml(all_links,channel)
+        self.build_xml(channel)
 
         tree = ET.ElementTree(rss)
         tree.write('tamilmvRSS.xml', encoding='utf-8', xml_declaration=True)
         print('Base feed finished')
 
     def job(self):
+        if len(self.all_links) == 0:
+            if os.path.exists('rssList.txt'):
+                self.all_links=self.load_list_from_file()
+        print('Fetching Started')
         # Lets use the requests get method to fetch the data from url
         response = requests.get(self.url)
         content = response.content
@@ -118,7 +123,7 @@ class Scraper:
 
         scraped=list(scrape(filtered_links))
 
-        new_links = [link for link in scraped if link not in all_links]
+        new_links = [link for link in scraped if link[0] not in self.titles]
 
         self.all_links= new_links + self.all_links
 
@@ -159,9 +164,9 @@ class Scraper:
 
 if __name__ == '__main__':
     scraper = Scraper()
+    scraper.run()
     scraper.begin()
     Thread(target=scraper.run_schedule).start()
-    scraper.run()
     # torrent_file_path = "test1.torrent"
     # size_in_bytes = get_torrent_size(torrent_file_path)
     # print(f"Total size of files in torrent: {size_in_bytes} bytes")
