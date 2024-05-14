@@ -11,155 +11,157 @@ from flask import Flask, send_file
 import os
 from threading import Thread
 # Save a list to a file
-def save_list_to_file(list_to_save):
-    with open('rssList.txt', 'wb') as f:
-        pickle.dump(list_to_save, f)
 
-# Load a list from a file
-def load_list_from_file():
-    with open('rssList.txt', 'rb') as f:
-        return pickle.load(f)
+class Tamilmv:
+    def __init__(self):
+        self.all_links = []
+        self.url = 'https://www.1tamilmv.com/'
+        self.app = Flask(__name__)
+        self.port = int(os.environ.get("PORT", 8000))
+        self.setup_routes()
 
-def get_links(url):
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    # cPost_contentWrap = soup.find('div', class_='cPost_contentWrap')
-    a_tags = soup.find_all('a', href=lambda href: href and 'attachment.php' in href)
-    return a_tags
+    def save_list_to_file(self):
+        with open('rssList.txt', 'wb') as f:
+            pickle.dump(self.all_links, f)
 
-def get_torrent_size(torrent_file_path):
-    data = tp.parse_torrent_file(torrent_file_path)
-    if 'files' in data['info']:
-        size = sum(file['length'] for file in data['info']['files'])
-    else:
-        size = data['info']['length']
-    return size
+    # Load a list from a file
+    def load_list_from_file():
+        with open('rssList.txt', 'rb') as f:
+            self.all_links = pickle.load(f)
 
-def get_links_with_delay(link):
-    result = get_links(link)
-    sleep(5)  # Introduce a delay of 5 seconds between each request
-    return result
+    def get_links(url):
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        # cPost_contentWrap = soup.find('div', class_='cPost_contentWrap')
+        a_tags = soup.find_all('a', href=lambda href: href and 'attachment.php' in href)
+        return a_tags
 
-def scrape(links):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # Map tasks for each link to get_links_with_delay function
-        results = executor.map(get_links_with_delay, itertools.islice(links, 30))
-        # Iterate over completed tasks
-        for result in results:
-            # Yield results from each completed task
-            for a in result:
-                yield a.text, a['href']
+    def get_torrent_size(torrent_file_path):
+        data = tp.parse_torrent_file(torrent_file_path)
+        if 'files' in data['info']:
+            size = sum(file['length'] for file in data['info']['files'])
+        else:
+            size = data['info']['length']
+        return size
 
-def build_xml(data,channel):
-    now = datetime.now()
-    for x in data:
-        item = ET.SubElement(channel, 'item')
-        ET.SubElement(item, 'title').text = x[0]
-        ET.SubElement(item, 'link').text = x[1]
-        # ET.SubElement(item, 'description').text = 'wDbots'
-        ET.SubElement(item, 'pubDate').text = now.isoformat('T')
+    def get_links_with_delay(link):
+        result = self.get_links(link)
+        sleep(5)  # Introduce a delay of 5 seconds between each request
+        return result
 
-all_links = []
+    def scrape(links):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Map tasks for each link to get_links_with_delay function
+            results = executor.map(get_links_with_delay, itertools.islice(links, 30))
+            # Iterate over completed tasks
+            for result in results:
+                # Yield results from each completed task
+                for a in result:
+                    yield a.text, a['href']
 
-def begin():
-    print('Feed generation started')
-    rss = ET.Element('rss', version='2.0')
-    channel = ET.SubElement(rss, 'channel')
-    ET.SubElement(channel, 'title').text = 'TamilMV RSS Feed by wDBots'
-    ET.SubElement(channel, 'description').text = 'Duck a Sick'
-    ET.SubElement(channel, 'link').text = 'https://t.me/whiteDevilBots'
+    def build_xml(self,data,channel):
+        now = datetime.now()
+        for x in data:
+            item = ET.SubElement(channel, 'item')
+            ET.SubElement(item, 'title').text = x[0]
+            ET.SubElement(item, 'link').text = x[1]
+            # ET.SubElement(item, 'description').text = 'wDbots'
+            ET.SubElement(item, 'pubDate').text = now.isoformat('T')
 
-    url = 'https://www.1tamilmv.com/'
+    def begin(self):
+        if os.path.exist('rssList.txt'):
+            self.all_links = load_list_from_file()
+            print("rssList.txt loaded")
+            return
+        print('Feed generation started')
+        rss = ET.Element('rss', version='2.0')
+        channel = ET.SubElement(rss, 'channel')
+        ET.SubElement(channel, 'title').text = 'TamilMV RSS Feed by wDBots'
+        ET.SubElement(channel, 'description').text = 'Duck a Sick'
+        ET.SubElement(channel, 'link').text = 'https://t.me/whiteDevilBots'
 
-    # Lets use the requests get method to fetch the data from url
-    response = requests.get(url)
-    content = response.content
-    soup = BeautifulSoup(content, 'html.parser')
+        # Lets use the requests get method to fetch the data from url
+        response = requests.get(self.url)
+        content = response.content
+        soup = BeautifulSoup(content, 'html.parser')
 
-    # Find all the paragraphs with 'font-size: 13.1px;'
-    paragraphs = soup.find_all('p', style='font-size: 13.1px;')
+        # Find all the paragraphs with 'font-size: 13.1px;'
+        paragraphs = soup.find_all('p', style='font-size: 13.1px;')
 
-    # Get all the links from the paragraphs
-    links = [a['href'] for p in paragraphs for a in p.find_all('a', href=True)]
-    # Filter the links to get only the ones that contain 'index.php?/forums/topic/'
-    filtered_links = [link for link in links if 'index.php?/forums/topic/' in link]
-    global all_links
-    all_links=list(scrape(filtered_links))
+        # Get all the links from the paragraphs
+        links = [a['href'] for p in paragraphs for a in p.find_all('a', href=True)]
+        # Filter the links to get only the ones that contain 'index.php?/forums/topic/'
+        filtered_links = [link for link in links if 'index.php?/forums/topic/' in link]
+        self.all_links=list(scrape(filtered_links))
 
-    save_list_to_file(all_links)
+        self.save_list_to_file(all_links)
 
-    build_xml(all_links,channel)
+        self.build_xml(all_links,channel)
 
-    tree = ET.ElementTree(rss)
-    tree.write('tamilmvRSS.xml', encoding='utf-8', xml_declaration=True)
-    print('Base feed finished')
-
-def job():
-    global all_links
-    if len(all_links) == 0:
-        all_links=load_list_from_file()
-    url = 'https://www.1tamilmv.eu/'
-
-    # Lets use the requests get method to fetch the data from url
-    response = requests.get(url)
-    content = response.content
-    soup = BeautifulSoup(content, 'html.parser')
-
-    # Find all the paragraphs with 'font-size: 13.1px;'
-    paragraphs = soup.find_all('p', style='font-size: 13.1px;')
-
-    # Get all the links from the paragraphs
-    links = [a['href'] for p in paragraphs for a in p.find_all('a', href=True)]
-    # Filter the links to get only the ones that contain 'index.php?/forums/topic/'
-    filtered_links = [link for link in links if 'index.php?/forums/topic/' in link]
-
-    scraped=list(scrape(filtered_links))
-
-    new_links = [link for link in scraped if link not in all_links]
-
-    all_links= new_links + all_links
-
-    if len(new_links):
-        save_list_to_file(all_links)
-        tree=ET.ElementTree()
-        tree.parse('tamilmvRSS.xml')
-
-        root=tree.getroot()
-        channel=root.find('channel')
-        npw=datetime.now().isoformat()
-        for item_data in reversed(new_links):
-            item = ET.Element('item')
-            ET.SubElement(item, 'title').text = item_data[0]
-            ET.SubElement(item, 'link').text = item_data[1]
-            ET.SubElement(item, 'pubDate').text = npw
-            channel.insert(3, item)
+        tree = ET.ElementTree(rss)
         tree.write('tamilmvRSS.xml', encoding='utf-8', xml_declaration=True)
-        print('New items added to feed')
+        print('Base feed finished')
 
-def run_schedule():
-    while True:
-        job()
-        sleep(1500)
+    def job(self):
+        # Lets use the requests get method to fetch the data from url
+        response = requests.get(self.url)
+        content = response.content
+        soup = BeautifulSoup(content, 'html.parser')
 
+        # Find all the paragraphs with 'font-size: 13.1px;'
+        paragraphs = soup.find_all('p', style='font-size: 13.1px;')
 
-app = Flask(__name__)
+        # Get all the links from the paragraphs
+        links = [a['href'] for p in paragraphs for a in p.find_all('a', href=True)]
+        # Filter the links to get only the ones that contain 'index.php?/forums/topic/'
+        filtered_links = [link for link in links if 'index.php?/forums/topic/' in link]
 
-@app.route('/')
-def serve_rss():
-    return send_file('tamilmvRSS.xml')
+        scraped=list(scrape(filtered_links))
 
-@app.route('/status')
-def start():
-    return Response("Server is running").status_code(200)
+        new_links = [link for link in scraped if link not in all_links]
+
+        self.all_links= new_links + self.all_links
+
+        if len(new_links):
+            self.save_list_to_file()
+            tree=ET.ElementTree()
+            tree.parse('tamilmvRSS.xml')
+
+            root=tree.getroot()
+            channel=root.find('channel')
+            npw=datetime.now().isoformat()
+            for item_data in reversed(new_links):
+                item = ET.Element('item')
+                ET.SubElement(item, 'title').text = item_data[0]
+                ET.SubElement(item, 'link').text = item_data[1]
+                ET.SubElement(item, 'pubDate').text = npw
+                channel.insert(3, item)
+            tree.write('tamilmvRSS.xml', encoding='utf-8', xml_declaration=True)
+            print('New items added to feed')
+
+    def run_schedule():
+        while True:
+            job()
+            sleep(1500)
+
+    def run(self):
+        print(f"Server is running on port {self.port}")
+        self.app.run(host='0.0.0.0', port=self.port)
+
+    def setup_routes(self):
+        @self.app.route('/')
+        def serve_rss():
+            return send_file('tamilmvRSS.xml')
+
+        @self.app.route('/status')
+        def start():
+            return Response("Server is running", status=200)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8000))
-    print(f"Server is running on port {port}")
-    app.run(host='0.0.0.0',port=port)
-
-begin()
-Thread(target=run_schedule).start()
-
-# torrent_file_path = "test1.torrent"
-# size_in_bytes = get_torrent_size(torrent_file_path)
-# print(f"Total size of files in torrent: {size_in_bytes} bytes")
+    scraper = Scraper()
+    scraper.begin()
+    Thread(target=scraper.run_schedule).start()
+    scraper.run()
+    # torrent_file_path = "test1.torrent"
+    # size_in_bytes = get_torrent_size(torrent_file_path)
+    # print(f"Total size of files in torrent: {size_in_bytes} bytes")
